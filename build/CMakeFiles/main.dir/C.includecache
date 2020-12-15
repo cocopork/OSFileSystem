@@ -1,0 +1,30 @@
+#IncludeRegexLine: ^[ 	]*[#%][ 	]*(include|import)[ 	]*[<"]([^">]+)([">])
+
+#IncludeRegexScan: ^.*$
+
+#IncludeRegexComplain: ^$
+
+#IncludeRegexTransform: 
+
+../include/disk.h
+
+../include/global.h
+stdio.h
+-
+stdlib.h
+-
+stdint.h
+-
+string.h
+-
+disk.h
+../include/disk.h
+
+/home/ggboy/OSproject/FileSystem/src/shell.c
+global.h
+/home/ggboy/OSproject/FileSystem/src/global.h
+stdio.h
+-
+stdlib.h
+-
+

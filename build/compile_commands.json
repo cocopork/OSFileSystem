@@ -1,0 +1,22 @@
+[
+{
+  "directory": "/home/ggboy/OSproject/FileSystem/build",
+  "command": "/bin/x86_64-linux-gnu-gcc-9  -I/home/ggboy/OSproject/FileSystem/./include  -g   -o CMakeFiles/main.dir/src/disk.c.o   -c /home/ggboy/OSproject/FileSystem/src/disk.c",
+  "file": "/home/ggboy/OSproject/FileSystem/src/disk.c"
+},
+{
+  "directory": "/home/ggboy/OSproject/FileSystem/build",
+  "command": "/bin/x86_64-linux-gnu-gcc-9  -I/home/ggboy/OSproject/FileSystem/./include  -g   -o CMakeFiles/main.dir/src/main.c.o   -c /home/ggboy/OSproject/FileSystem/src/main.c",
+  "file": "/home/ggboy/OSproject/FileSystem/src/main.c"
+},
+{
+  "directory": "/home/ggboy/OSproject/FileSystem/build",
+  "command": "/bin/x86_64-linux-gnu-gcc-9  -I/home/ggboy/OSproject/FileSystem/./include  -g   -o CMakeFiles/main.dir/src/shell.c.o   -c /home/ggboy/OSproject/FileSystem/src/shell.c",
+  "file": "/home/ggboy/OSproject/FileSystem/src/shell.c"
+},
+{
+  "directory": "/home/ggboy/OSproject/FileSystem/build",
+  "command": "/bin/x86_64-linux-gnu-gcc-9  -I/home/ggboy/OSproject/FileSystem/./include  -g   -o CMakeFiles/main.dir/src/utils.c.o   -c /home/ggboy/OSproject/FileSystem/src/utils.c",
+  "file": "/home/ggboy/OSproject/FileSystem/src/utils.c"
+}
+]

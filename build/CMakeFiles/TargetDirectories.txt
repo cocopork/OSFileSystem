@@ -1,0 +1,3 @@
+/home/ggboy/OSproject/FileSystem/build/CMakeFiles/rebuild_cache.dir
+/home/ggboy/OSproject/FileSystem/build/CMakeFiles/edit_cache.dir
+/home/ggboy/OSproject/FileSystem/build/CMakeFiles/main.dir
