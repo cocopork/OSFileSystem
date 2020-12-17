@@ -20,6 +20,20 @@ string.h
 disk.h
 ../include/disk.h
 
+/home/ggboy/OSproject/FileSystem/src/main.c
+global.h
+/home/ggboy/OSproject/FileSystem/src/global.h
+stdio.h
+-
+stdlib.h
+-
+unistd.h
+-
+sys/types.h
+-
+wait.h
+-
+
 /home/ggboy/OSproject/FileSystem/src/shell.c
 global.h
 /home/ggboy/OSproject/FileSystem/src/global.h
@@ -27,4 +41,10 @@ stdio.h
 -
 stdlib.h
 -
+
+/home/ggboy/OSproject/FileSystem/src/utils.c
+global.h
+/home/ggboy/OSproject/FileSystem/src/global.h
+disk.h
+/home/ggboy/OSproject/FileSystem/src/disk.h
 

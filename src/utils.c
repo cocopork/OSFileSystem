@@ -8,7 +8,6 @@ int disk_init(){
         printf("disk open error\n");
         return -1;
     }
-    
     if (disk_read_block(SP_BLK_INDEX,disk_buf)==-1)
     {
         printf("read disk No.%d error\n",SP_BLK_INDEX);
@@ -19,7 +18,6 @@ int disk_init(){
     strcpy(root_dir_item.name,"root");
     root_dir_item.type = DIR_TYPE;
     root_dir_item.valid = 1;
-
     //获取幻数
     sp_read();
     int32_t magic_num=super_block.magic_num;
@@ -38,6 +36,8 @@ int disk_init(){
         printf("welcome \n");
         current_path_inode = get_root();
         current_path_inode_idx = ROOT_INODE_IDX;
+        cur_path_level = 1;
+        strcpy(cur_path[0],"root");
     }
     
 }
@@ -97,10 +97,17 @@ void root_init()
     struct inode root_inode;
     int block_num = DATA_DT_IDX;
     root_inode = inode_init(0,DIR_TYPE);
-    current_path_inode = root_inode;//记录root为当前工作路径
+
+    //记录root为当前工作路径
+    current_path_inode = root_inode;
+    current_path_inode_idx = ROOT_INODE_IDX;
+    cur_path_level = 1;
+    strcpy(cur_path[0],"root");
+
     //写入inode
     write_buf(disk_buf,&root_inode,0,sizeof(struct inode));
     disk_write_block(inode_to_disk(root_dir_item.inode_id),disk_buf);
+
 
     //再修改数据块
     memset(disk_buf,0,sizeof(disk_buf));
@@ -148,12 +155,28 @@ struct inode inode_init(int free_inode,int type)
         }    
 
         int blk_id = get_free_blk();//找新block保存.和..
+        set_block_map(blk_id,1);
         if (blk_id==-1)
         {
             new.file_type = ERROR;
             return new;
         }
         new.block_point[0] = blk_id;
+        //写入.和..目录项
+        disk_read_block(blk_id*2,disk_buf);
+        struct dir_item a,b;// .和..
+        a.inode_id = root_dir_item.inode_id;
+        strcpy(a.name,".");
+        a.type = DIR_TYPE;
+        a.valid = 1;
+        write_buf(disk_buf,&a,0,sizeof(dir_item_t));
+
+        b.inode_id = NULL;
+        strcpy(b.name,"..");
+        b.type = DIR_TYPE;
+        b.valid = 1;
+        write_buf(disk_buf,&b,sizeof(dir_item_t),sizeof(dir_item_t));
+        disk_write_block(blk_id*2,disk_buf);
     }
     else if (type==FILE_TYPE)
     {
@@ -163,6 +186,7 @@ struct inode inode_init(int free_inode,int type)
             new.block_point[i] = 0;
         }   
         int blk_id = get_free_blk(); 
+        set_block_map(blk_id,1);
         if (blk_id==-1)
         {
             new.file_type = ERROR;
@@ -192,9 +216,9 @@ int get_free_blk()
         temp = super_block.block_map[i];
         for(int j=0;j<32;j++)
         {
-            if(i==0)//前面几块被占用了
+            if(i==0&&j==0)//前面几块被占用了
                 j += DATA_DT_IDX;
-            if ((temp&(1<<j))==0)
+            if ((temp&(1<<(31-j)))==0)
             {
                 return i*128+j;
             }
@@ -212,7 +236,7 @@ int get_free_inode()
         temp = super_block.inode_map[i];
         for(int j=0;j<32;j++)
         {
-            if ((temp&(1<<j))==0)
+            if ((temp&(1<<(31-j)))==0)
             {
                 return i*32+j;
             }   
@@ -282,12 +306,17 @@ void get_free_item(dir_item_t *dir,int *i,int *j,int *disk_blk_part,int type,int
     *disk_blk_part = disk_blk_part_1;  
 }
 
-int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *disk_blk_part)
+//file_name文件名，
+//block_point_idx在当前目录哪一个block_point，
+//item_idx在哪一个目录项
+//disk_blk_part在哪一个磁盘块
+//type文件类型还是目录类型
+int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *disk_blk_part,int type)
 {
     dir_item_t dir_1;
     dir_1.valid = 1;
     int i_1,j_1;//i是在哪一个block_point，j是在磁盘块中第几条
-    int disk_blk_part_1;//指明那个空的dir在第一个磁盘块还是第二个磁盘块
+    int disk_blk_part_1;//指明那个dir在第一个磁盘块还是第二个磁盘块
     //查找同名item是否存在
     for(i_1=0;i_1<6;i_1++)
     {
@@ -302,7 +331,7 @@ int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *
                     j_1*sizeof(dir_item_t),
                     sizeof(dir_item_t));
             //有同名文件
-            if (strcmp(dir_1.name,file_name)==0&&dir_1.valid==1)
+            if (strcmp(dir_1.name,file_name)==0&&dir_1.valid==1&&dir_1.type==type)
             {
                 *block_point_idx = i_1;
                 *item_idx = j_1;
@@ -318,7 +347,7 @@ int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *
                     j_1*sizeof(dir_item_t),
                     sizeof(dir_item_t));
             //有同名文件
-            if (strcmp(dir_1.name,file_name)==0&&dir_1.valid==1)
+            if (strcmp(dir_1.name,file_name)==0&&dir_1.valid==1&&dir_1.type==type)
             {
                 *block_point_idx = i_1;
                 *item_idx = j_1;
@@ -428,13 +457,13 @@ void byte_reset(uint32_t *bytes,int index)
 //inode_id对应磁盘号
 int inode_to_disk(int inode_idx)
 {
-    return inode_idx/42+INODE_DISKBLK_IDX;
+    return inode_idx/16+INODE_DISKBLK_IDX;
 }
 
 //inode_id在磁盘号中的位置(0~41)
 int inode_in_disk(int inode_idx)
 {
-    return inode_idx%42;
+    return inode_idx%16;
 }
 
 //整数转换

@@ -40,6 +40,9 @@ int main(){
             case RM:
                 exec_rm();
                 break;
+            case CD:
+                exec_cd();
+                break;
             default:
                 break;
             }

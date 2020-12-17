@@ -17,12 +17,12 @@
 //磁盘块索引
 #define SP_DISKBLK_IDX      0
 #define INODE_DISKBLK_IDX   2
-#define DATA_DISKBLK_IDX    52
+#define DATA_DISKBLK_IDX    128
 
 //数据块索引
 #define SP_DT_IDX           0
 #define INODE_DT_IDX        1
-#define DATA_DT_IDX         26
+#define DATA_DT_IDX         64
 
 //命令标号
 #define LS          1//展示读取文件夹内容
@@ -31,6 +31,7 @@
 #define CP          4//复制文件
 #define SHUTDOWN    5//关闭系统
 #define RM          6//删除文件
+#define CD          7//更改路径
 //目录
 #define ROOT_INODE_IDX      0//根目录inode索引号
 #define FILE_TYPE           1//文件类
@@ -77,8 +78,12 @@ char command[CMD_SIZE];             //命令内容
 char argv[ARGV_SIZE];               //命令变量，即路径名称
 char path[10][121];                 //路径名称
 struct dir_item root_dir_item;      //根目录结构体
+
+char cur_path[10][121];
+int cur_path_level;
 struct inode current_path_inode;    //当前工作路径下inode节点
 uint32_t current_path_inode_idx;    //当前工作路径下inode索引号
+
 //shell
 int get_cmd(char *buf,int nbuf);
 struct inode get_inode(struct inode last_inode,int level);
@@ -90,6 +95,7 @@ void exec_touch();
 void exec_cp();
 void exec_shutdown();
 void exec_rm();
+void exec_cd();
 //utils
 //硬盘
 int disk_init();                 //硬盘初始化，将超级块记录数据写入虚拟盘
@@ -103,7 +109,7 @@ struct inode get_root();
 int get_free_blk();
 int get_free_inode();
 void get_free_item(dir_item_t *dir,int *i,int *j,int *disk_blk_part,int type,int check_same);
-int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *disk_blk_part);
+int file_name_exist(char file_name[121],int *block_point_idx,int *item_idx,int *disk_blk_part,int type);
 void write_buf(char *buf,void *src,int buf_start,int size);
 void read_buf(char *buf,void* dst,int buf_start,int size);
 //字节

@@ -37,12 +37,13 @@ int parse_cmd(char *buf)
         cmd_code = SHUTDOWN; 
     else if(!strcmp(command,"rm"))
         cmd_code = RM; 
+    else if (!strcmp(command,"cd"))
+        cmd_code = CD;
     else
     {
         printf("no such command\n");
         return -1;
     }
-
     //获取变量（文件路径）
     memset(argv,0,sizeof(argv));
     cur_p = get_token(cur_p,argv,ARGV_SIZE);  
@@ -246,6 +247,8 @@ void exec_mkdir()
         return;
     }
     int free_inode = get_free_inode();
+    set_inode_map(free_inode,1);
+    //修改当前inode下的目录项所在磁盘块
     if (i==6&&dir.valid==1)
     {//当前目录下，目录项满了
         printf("current diretory has no more space\n");
@@ -289,11 +292,15 @@ void exec_mkdir()
     struct inode new;
     new = inode_init(free_inode,DIR_TYPE);
     //加入inode信息
+    int x = inode_to_disk(free_inode);
+    int y = inode_in_disk(free_inode);
     disk_read_block(inode_to_disk(free_inode),disk_buf);
     write_buf(disk_buf,&new,
-                inode_in_disk(free_inode),
+                inode_in_disk(free_inode)*sizeof(struct inode),
                 sizeof(struct inode));
     disk_write_block(inode_to_disk(free_inode),disk_buf);
+    //新目录下还有两个目录项.和..
+
 }
 //创建文件
 void exec_touch()
@@ -363,10 +370,6 @@ void exec_touch()
     //新文件有新inode
     struct inode new;
     new = inode_init(free_inode,FILE_TYPE);
-    set_inode_map(free_inode,1);
-    int new_free_blk = get_free_blk();
-    new.block_point[0] = new_free_blk;
-    set_block_map(new_free_blk,1);
     for(int k=1;k<6;k++)
     {
         new.block_point[k] = 0;
@@ -375,7 +378,7 @@ void exec_touch()
     //加入inode信息
     disk_read_block(inode_to_disk(free_inode),disk_buf);
     write_buf(disk_buf,&new,
-                inode_in_disk(free_inode),
+                inode_in_disk(free_inode)*sizeof(struct inode),
                 sizeof(struct inode));
     disk_write_block(inode_to_disk(free_inode),disk_buf); 
 }
@@ -397,7 +400,7 @@ void exec_cp()
     }
     //检查当前目录下有没有这个文件
     int m,n,l;//file_name_exist要用，后面没用到
-    if(file_name_exist(path[0],&m,&n,&l)==-1)
+    if(file_name_exist(path[0],&m,&n,&l,FILE_TYPE)==-1)
     {
         printf("no such file\n");
         return;
@@ -410,7 +413,7 @@ void exec_cp()
     strcpy(new_name+k,"-copy");
     //检查复制的文件是不是也存在了
     int copy_num = 0;
-    while (file_name_exist(new_name,&m,&n,&l)!=-1)
+    while (file_name_exist(new_name,&m,&n,&l,FILE_TYPE)!=-1)
     {
         copy_num++;
         char num[4];
@@ -492,7 +495,7 @@ void exec_rm()
     }   
     //检查当前目录下有没有这个文件
     int block_point_idx,item_idx,disk_blk_part;
-    if(file_name_exist(path[0],&block_point_idx,&item_idx,&disk_blk_part)==-1)
+    if(file_name_exist(path[0],&block_point_idx,&item_idx,&disk_blk_part,FILE_TYPE)==-1)
     {
         printf("no such file\n");
         return;
@@ -534,8 +537,89 @@ void exec_rm()
     //接着释放那个文件inode下的block
     for(int k=0;k<6;k++)
     {
-        set_block_map(rm_inode.block_point[k],0);
+        if(rm_inode.block_point[k]!=0)
+            set_block_map(rm_inode.block_point[k],0);
     }
     //接着释放该inode
     set_inode_map(rm_inode_idx,0);
+}
+
+void exec_cd()
+{
+    //检查是否有变量
+    int level = get_path();
+    if (level!=1)
+    {
+        printf("cd error\n");
+        return;
+    }  
+    int block_point_idx,item_idx,disk_blk_part;//file_name_exist要用，后面查找目录
+    int flag=0;
+    if (!strcmp(path[0],".."))
+    {
+        flag = 0;
+        if (!strcmp(cur_path[cur_path_level-1],"root"))
+        {
+            printf("there is not directory above root/\n");
+            return;
+        }
+        else
+        {//进入上一个节点
+            
+            file_name_exist(path[0],
+                                &block_point_idx,
+                                &item_idx,
+                                &disk_blk_part,
+                                DIR_TYPE);
+        }
+    }
+    else
+    {//正常文件目录
+        flag=1;
+        if(file_name_exist(path[0],&block_point_idx,&item_idx,&disk_blk_part,DIR_TYPE)==-1)
+        {
+            printf("no such directory\n");
+            return;
+        }
+
+    }  
+
+    //先获取那个目录项
+    dir_item_t dst_dir;
+    disk_read_block(current_path_inode.block_point[block_point_idx]*2+disk_blk_part,disk_buf);
+    read_buf(disk_buf,&dst_dir,item_idx*sizeof(dir_item_t),sizeof(dir_item_t));
+    
+    //再获取inode节点
+    int block_of_inode = inode_to_disk(dst_dir.inode_id);
+    int inode_idx = inode_in_disk(dst_dir.inode_id);
+    disk_read_block(block_of_inode,disk_buf);
+    struct inode dst_inode;
+    read_buf(disk_buf,&dst_inode,
+                inode_idx*sizeof(struct inode),
+                sizeof(struct inode));
+
+    //把当前节点设为inode节点
+    current_path_inode = dst_inode;
+    for(int i=0;i<6;i++)
+        current_path_inode.block_point[i] = dst_inode.block_point[i];
+    current_path_inode.file_type = dst_inode.file_type;
+    current_path_inode.link = dst_inode.link;
+    current_path_inode.size = dst_inode.size;
+    current_path_inode_idx = inode_idx;
+
+    if (flag)
+    {
+        strcpy(cur_path[cur_path_level],dst_dir.name);
+        cur_path_level++;
+    }
+    else
+        cur_path_level--;
+
+
+    printf("to be continued\n");
+    for(int i=0;i<cur_path_level;i++)
+    {
+        printf("%s/",cur_path[i]);
+    }
+
 }
